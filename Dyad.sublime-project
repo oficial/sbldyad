@@ -3,7 +3,7 @@
 	[
 		{
 			"follow_symlinks": true,
-			"path": "/home/ricardo/.config/sublime-text-3/Packages/Dyad"
+			"path": "~/.config/sublime-text-3/Packages/Dyad"
 		}
 	]
 }
