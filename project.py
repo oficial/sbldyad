@@ -1,7 +1,6 @@
 import sublime
 import sublime_plugin
 
-
 class CreateEngineProjectCommand(sublime_plugin.TextCommand):
 	def run(self, edit):
 		sublime.message_dialog("Ainda não implementado!")

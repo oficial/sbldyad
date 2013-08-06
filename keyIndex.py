@@ -118,4 +118,4 @@ class KeyIndexBuilder(threading.Thread):
             err = 'Erro:%s' % (e)
             print(err)
         sublime.error_message(err)  
-        self.result = None  
+        self.result = None

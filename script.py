@@ -10,7 +10,6 @@ import subprocess
 import sublime_plugin
 
 # TODO [1]: Se o MD5 do arquivo atual bater com o dos metadados então nao precisa atualizar
-# 
 
 def get_engine_port():
 	if not hasattr(sublime, 'engine_port'):
@@ -122,4 +121,3 @@ class FileInfoCommand(sublime_plugin.TextCommand):
 			sublime.message_dialog('Dados do arquivo:\nChave:%s\nVersao:%s'%(js.get('ikey'), js.get('iversion')))
 		else:
 			sublime.error_message('Arquivo de metadados não encontrado!')
-
