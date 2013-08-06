@@ -1,0 +1,5 @@
+//Default (Windows).sublime-keymap
+[
+	{ "keys": ["ctrl+enter"],	"command": "open_key"},
+	{ "keys": ["ctrl+shift+s"], "command": "sync_file"}
+]

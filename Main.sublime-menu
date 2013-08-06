@@ -1,0 +1,9 @@
+[
+	{
+		"id":"edit",
+		"children": [
+			{ "id": "wrap" },
+			{ "command":"hello" }
+		]
+	}
+]
