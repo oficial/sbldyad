@@ -1,9 +1,9 @@
 // Comandos que aparecem ao digitar: CTRL+SHIFT+P
 [
-	{
-		"caption":"Dyad: Build Key Index",
-		"command":"build_index"
-	},
+	// {
+	// 	"caption":"Dyad: Build Key Index",
+	// 	"command":"build_index"
+	// },
 	{
 		"caption":"Dyad: Save File (remote)",
 		"command":"save_file"

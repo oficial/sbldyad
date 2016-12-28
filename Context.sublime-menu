@@ -1,0 +1,7 @@
+[
+    // { "command": "open_context_url" },
+    // { "command": "context_goto_definition", "caption": "Goto Definition" },
+    // { "caption": "-", "id": "clipboard" },
+    // { "command": "copy", "caption":"Copiar Chave" },
+    // { "caption": "-", "id": "end" }
+]

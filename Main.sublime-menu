@@ -1,9 +1,16 @@
 [
 	{
-		"id":"edit",
+		"id":"project",
 		"children": [
-			{ "id": "wrap" },
-			{ "command":"hello" }
+            {
+                "caption": "Engine",
+                "children":
+                [
+                    { "command":"config_port",  "caption": "Configurar porta"},
+                    { "command":"config_user",  "caption": "Configurar usuário"},
+                    { "command":"load_cache",   "caption": "Carregar cache"}
+                ]
+            }
 		]
 	}
 ]

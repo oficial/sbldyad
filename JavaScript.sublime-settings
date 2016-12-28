@@ -1,6 +1,6 @@
 {
 	"extensions":
 	[
-		"ijs", "ip", "il", "ic", "is"
+		"ijs", "ip", "il", "ic", "is", "model", "view"
 	]
 }
