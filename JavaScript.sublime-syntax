@@ -1,10 +1,15 @@
 %YAML 1.2
 ---
 # Derived from JavaScript Next: https://github.com/Benvie/JavaScriptNext.tmLanguage
-name: JavaScript
+name: Bematech JavaScript
 file_extensions:
-  - js
-  - htc
+  - ijs
+  - ip
+  - il
+  - ic
+  - is
+  - model
+  - view
 first_line_match: ^#!/.*\b(node|js)$\n?
 scope: source.js
 variables:
@@ -470,10 +475,9 @@ contexts:
       scope: punctuation.definition.string.begin.js
       push:
         - meta_scope: string.quoted.single.js
-        - match: (')|(\n)
+        - match: (')
           captures:
             1: punctuation.definition.string.end.js
-            2: invalid.illegal.newline.js
           pop: true
         - include: string-content
     - match: '"'
@@ -481,10 +485,9 @@ contexts:
         0: punctuation.definition.string.begin.js
       push:
         - meta_scope: string.quoted.double.js
-        - match: (")|(\n)
+        - match: (")
           captures:
             1: punctuation.definition.string.end.js
-            2: invalid.illegal.newline.js
           pop: true
         - include: string-content
 

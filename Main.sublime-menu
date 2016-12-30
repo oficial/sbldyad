@@ -3,14 +3,22 @@
 		"id":"project",
 		"children": [
             {
-                "caption": "Engine",
+                "caption": "Engine IDE",
                 "children":
                 [
-                    { "command":"config_port",  "caption": "Configurar porta"},
-                    { "command":"config_user",  "caption": "Configurar usuário"},
-                    { "command":"load_cache",   "caption": "Carregar cache"}
+                    { "command":"config_port",          "caption": "Configurar porta"},
+                    { "command":"config_user",          "caption": "Configurar usuário"},
+                    { "command":"load_cache",           "caption": "Carregar cache"},
+                    { "command":"show_changed_files",   "caption": "Mostrar arquivos alterados"}
                 ]
             }
 		]
-	}
+	},
+    {
+        "id": "help",
+        "children":
+        [
+            { "command": "show_engine_help", "caption": "About Engine IDE" }
+        ]
+    }
 ]

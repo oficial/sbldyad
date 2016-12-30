@@ -1,19 +1,35 @@
 // Comandos que aparecem ao digitar: CTRL+SHIFT+P
 [
-	// {
-	// 	"caption":"Dyad: Build Key Index",
-	// 	"command":"build_index"
-	// },
 	{
-		"caption":"Dyad: Save File (remote)",
-		"command":"save_file"
+		"caption": "Dyad: Informar porta do engine",
+		"command": "config_port"
 	},
 	{
-		"caption":"Dyad: Sync File",
-		"command":"sync_file"
+		"caption": "Dyad: Informar usuário da base",
+		"command": "config_user"
 	},
 	{
-		"caption":"Dyad: Open Key",
-		"command":"open_key"
+		"caption": "Dyad: Carregar cache",
+		"command": "load_cache"
+	},
+	{
+		"caption": "Dyad: Copiar chave do script",
+		"command": "copy_key_to_clipboard"
+	},
+	{
+		"caption": "Dyad: Mostrar arquivos alterados",
+		"command": "show_changed_files"
+	},
+	{
+		"caption": "Dyad: Mostrar informações do arquivo na barra de status",
+		"command": "show_file_info"
+	},
+	{
+		"caption": "Dyad: Abrir arquivo da chave",
+		"command": "open_key"
+	},
+	{
+		"caption": "Dyad: Enviar alterações do arquivo para o engine",
+		"command": "save_file"
 	}
 ]
