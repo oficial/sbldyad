@@ -3,7 +3,7 @@ import os.path
 import textwrap
 import sublime
 import sublime_plugin
-from Dyad.objects import CacheLoader, CacheManager
+from sbldyad.objects import CacheLoader, CacheManager
 
 LICENCES = {
     1: "Dyad",
