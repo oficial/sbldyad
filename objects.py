@@ -26,8 +26,20 @@ def send_request(port, script, data):
 
 def handle_filename(filename):
     if sublime.platform() == 'linux':
-        return filename.replace('Z:','').replace('\\','/')
+        return filename.replace('Z:','').replace('H:', os.environ.get('HOME')).replace('\\','/')
     return filename
+
+def cache_reader(porta, base, path):
+    resp = send_request(porta, IVFS_SCRIPT, {
+        'command': 'export-vfs',
+        'base': base,
+        'path': path
+    })
+    for line in resp:
+        line = line.decode('iso-8859-1')
+        line = handle_filename(line)
+        field_list = line.split(';')
+        yield field_list
 
 
 class CacheManager(object):
@@ -53,9 +65,10 @@ class CacheManager(object):
 
     def create_table(self):
         self.conn.execute("""
-            create table if not exists SCRIPTS (
+            create table if not exists VFS (
+                TIPO integer,
                 CHAVE integer primary key,
-                CLASSE integer,
+                MAE integer,
                 VERSAO integer,
                 NOME text,
                 PATH text,
@@ -67,15 +80,15 @@ class CacheManager(object):
         self.conn.commit()
 
     def reset(self):
-        self.conn.execute("delete from SCRIPTS")
+        self.conn.execute("delete from VFS")
         self.conn.commit()
 
-    def insert_script(self, valores):
+    def insert_item(self, valores):
         self.conn.execute("""
-            insert into SCRIPTS (chave, classe, versao, nome, path, erro, licenca, alterado)
-            values (?, ?, ?, ?, ?, ?, ?, 0)
+            insert into VFS (tipo, chave, mae, versao, nome, path, erro, licenca, alterado)
+            values (?, ?, ?, ?, ?, ?, ?, ?, 0)
         """, valores)
-        self.conn.commit()
+        # self.conn.commit()
 
     def file_details(self, file_data):
         if file_data is None:
@@ -83,33 +96,34 @@ class CacheManager(object):
         if len(file_data) < 7:
             raise Exception("Dados insuficientes do arquivo!")
         return {
-            'chave':    file_data[0],
-            'classe':   file_data[1],
-            'versao':   file_data[2],
-            'nome':     file_data[3],
-            'path':     file_data[4],
-            'erro':     file_data[5],
-            'licenca':  file_data[6],
-            'alterado': file_data[7],
+            'tipo':     file_data[0],
+            'chave':    file_data[1],
+            'mae':      file_data[2],
+            'versao':   file_data[3],
+            'nome':     file_data[4],
+            'path':     file_data[5],
+            'erro':     file_data[6],
+            'licenca':  file_data[7],
+            'alterado': file_data[8],
         }
 
     def get_script(self, path):
         cur = self.conn.cursor()
-        cur.execute("select * from SCRIPTS where PATH = ?", (path,))
+        cur.execute("select * from VFS where TIPO = 2 and PATH = ?", (path,))
         return self.file_details(cur.fetchone())
 
     def get_script_by_key(self, key):
         cur = self.conn.cursor()
-        cur.execute("select * from SCRIPTS where CHAVE = ?", (key,))
+        cur.execute("select * from VFS where TIPO = 2 and CHAVE = ?", (key,))
         return self.file_details(cur.fetchone())
 
     def get_script_or_class(self, key):
         cur = self.conn.cursor()
         cur.execute("""
             select *
-            from SCRIPTS
+            from VFS
             where CHAVE = ?
-               or CLASSE = ?
+               or mae = ?
             order by NOME
             limit 1
         """, (key,key,))
@@ -117,20 +131,20 @@ class CacheManager(object):
 
     def get_changed_files(self):
         cur = self.conn.cursor()
-        cur.execute("select * from scripts where alterado > 0")
+        cur.execute("select * from VFS where alterado > 0")
         return cur.fetchall()
 
     def set_file_changed(self, filename):
         cur = self.conn.cursor()
         cur.execute("""
-            update SCRIPTS set ALTERADO = 1 where PATH = ?
+            update VFS set ALTERADO = 1 where PATH = ?
         """, (filename,))
         self.conn.commit()
 
     def update_script(self, file_details):
         cur = self.conn.cursor()
         cur.execute("""
-            update scripts
+            update vfs
             set alterado=0, versao=:versao
             where chave=:chave
         """, file_details)
@@ -205,7 +219,6 @@ class CacheManager(object):
         else:
             sublime.message_dialog("Retorno inesperado! Verifique o log no console.")
 
-
 class CacheLoader(threading.Thread):
     def __init__(self, window):
         self.window = window
@@ -228,22 +241,20 @@ class CacheLoader(threading.Thread):
         proj["folders"] = [{"path": root}]
         self.window.set_project_data(proj)
         print("Iniciando carga do cache as %s" % strftime("%H:%M:%S"))
-        resp = send_request(porta, IVFS_SCRIPT, {
-            'command': 'export-vfs',
-            'base': base,
-            'path': root
-        })
         cache = CacheManager(self.window)
         cache.initialize()
         cache.reset()
-        for linha in resp:
-            linha = linha.decode('iso-8859-1')
-            linha = handle_filename(linha)
-            campos = linha.split(';')
+        c = 0
+        for f in cache_reader(porta, base, root):
             try:
-                cache.insert_script(campos)
+                c = c + 1
+                cache.insert_item(f)
+                if c > 100:
+                    cache.conn.commit()
+                    c = 0
             except Exception as e:
-                print("Erro ao inserir script: %s; Erro: %s" % (linha, e) )
+                print("Erro ao inserir script: %s; Erro: %s" % (f, e) )
+        cache.conn.commit()
         print("Carga do cache terminou as %s" % strftime("%H:%M:%S"))
 
 

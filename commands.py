@@ -156,7 +156,7 @@ class ShowChangedFilesCommand(sublime_plugin.WindowCommand):
         titulo = "\nArquivos alterados e ainda não enviados ao engine:\n"
         text = ""
         for file in cache.get_changed_files():
-            text = text + ("\t%d\t%s\n" % (file[0], file[4]))
+            text = text + ("\t%d\t%s\n" % (file[1], file[5]))
         if text is "":
             text = "\tNenhum arquivo alterado apenas localmente"
         v.run_command('append', {'characters': (titulo + text)})
@@ -231,6 +231,7 @@ class OpenKeyCommand(sublime_plugin.TextCommand):
             return
         pasta_raiz = proj_data.get('folders')[0].get('path')
         caminho_script = os.path.join(pasta_raiz, dados_do_script.get('path'))
+        # print("Item para abrir: %s" % caminho_script)
         caminho_script = caminho_script.replace('\\','/')
         if os.path.isfile(caminho_script):
             self.view.window().open_file(caminho_script)
