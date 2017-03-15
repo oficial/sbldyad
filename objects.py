@@ -54,6 +54,8 @@ class CacheManager(object):
         if os.path.isfile(self.db_file_name):
             self.is_new_databse = False
         self.conn = sqlite3.connect(self.db_file_name)
+        self.project_path = None
+        self.root_path = None
 
     def __del__(self):
         if self.conn is not None:
@@ -61,10 +63,10 @@ class CacheManager(object):
 
     def initialize(self):
         #
-        self.create_table()
+        self.create_tables()
 
-    def create_table(self):
-        self.conn.execute("""
+    def create_tables(self):
+        self.conn.executescript("""
             create table if not exists VFS (
                 TIPO integer,
                 CHAVE integer primary key,
@@ -75,20 +77,87 @@ class CacheManager(object):
                 ERRO integer,
                 LICENCA integer,
                 ALTERADO integer
-            )
+            );
+            create table if not exists CACHE_HIST (
+                ID INTEGER PRIMARY KEY,
+                DATA TEXT,
+                HORA TEXT
+            );
         """)
         self.conn.commit()
+
+    def register_cache_load(self):
+        data = strftime("%d/%m/%Y")
+        hora = strftime("%H:%M:%S")
+        self.conn.execute("""
+            insert into CACHE_HIST (id, data, hora)
+            values (NULL, ?, ?)
+        """, (data, hora))
+        self.conn.commit()
+
+    def get_cache_history(self):
+        cur = self.conn.cursor()
+        cur.execute("select * from CACHE_HIST order by ID desc")
+        return cur.fetchall()
 
     def reset(self):
         self.conn.execute("delete from VFS")
         self.conn.commit()
 
+    def get_project_data(self, key=None):
+        dados_do_projeto = self.window.project_data()
+        if dados_do_projeto is None:
+            raise Exception("Nenhum projeto aberto nessa janela!")
+        if key is not None:
+            return dados_do_projeto.get(key, None)
+        return dados_do_projeto
+
+    def add_project_data(self, key, value):
+        pd = self.get_project_data()
+        pd[key] = value
+        self.window.set_project_data(pd)
+
+    def get_project_path(self):
+        if self.project_path is None:
+            pfn = self.window.project_file_name()
+            if pfn is None:
+                raise Exception("Nenhum projeto aberto nessa janela!")
+            self.project_path = os.path.dirname(pfn)
+        return self.project_path
+
+    def get_root_path(self):
+        if self.root_path is None:
+            self.root_path = os.path.join(self.get_project_path(), 'Raiz')
+        return self.root_path
+
+    def get_engine_port(self, raise_error=True):
+        porta = self.get_project_data('engine_port')
+        if porta is None and raise_error:
+            raise Exception("Configure a porta antes de prosseguir!")
+        return porta
+
+    def get_engine_user(self, raise_error=True):
+        user = self.get_project_data('engine_user')
+        if user is None and raise_error:
+            raise Exception("Configure o usuário antes de prosseguir!")
+        return user
+
+    def get_base_name(self):
+        arquivo_projeto = self.window.project_file_name()
+        if arquivo_projeto is None:
+            raise Exception("Não foi possível encontrar um arquivo de projeto!")
+        return os.path.splitext(os.path.basename(arquivo_projeto))[0]
+
     def insert_item(self, valores):
+        valores[5] = self.file_path_to_vfs_path(valores[5])
         self.conn.execute("""
             insert into VFS (tipo, chave, mae, versao, nome, path, erro, licenca, alterado)
             values (?, ?, ?, ?, ?, ?, ?, ?, 0)
         """, valores)
-        # self.conn.commit()
+
+    def file_path_to_vfs_path(self, filename):
+        path_raiz = self.get_root_path()
+        return filename.replace(path_raiz, '')
 
     def file_details(self, file_data):
         if file_data is None:
@@ -124,17 +193,50 @@ class CacheManager(object):
             from VFS
             where CHAVE = ?
                or mae = ?
-            order by NOME
+            order by TIPO desc -- scripts primeiro
             limit 1
         """, (key,key,))
         return self.file_details(cur.fetchone())
 
-    def get_changed_files(self):
+    def get_local_changes(self):
         cur = self.conn.cursor()
         cur.execute("select * from VFS where alterado > 0")
         return cur.fetchall()
 
+    def get_remote_changes(self, passwd):
+        base = self.get_base_name()
+        porta = self.get_engine_port()
+        pasta = self.get_project_path()
+        user = self.get_engine_user()
+
+        atualizacoes = self.get_cache_history()
+        if len(atualizacoes) is 0:
+            raise Exception("Impossível determinar a data da última atualização!")
+
+        ultima_atualizacao = atualizacoes[0]
+        data = ultima_atualizacao[1]
+        hora = ultima_atualizacao[2]
+        print("Ultima atualização foi em: %s %s" % (data, hora))
+
+        response = send_request(porta, IVFS_SCRIPT, {
+            'command': 'server-changes',
+            'base': base,
+            'data': data,
+            'hora': hora,
+            'pasta': pasta,
+            'user': user,
+            'passwd': passwd
+        })
+        # resp = resp.readall().decode('iso-8859-1')
+        # print("Resposta: %s" % resp)
+        # return resp
+        for line in response:
+            line = line.decode('iso-8859-1')
+            field_list = line.split(';')
+            yield field_list
+
     def set_file_changed(self, filename):
+        filename = self.file_path_to_vfs_path(filename)
         cur = self.conn.cursor()
         cur.execute("""
             update VFS set ALTERADO = 1 where PATH = ?
@@ -151,7 +253,7 @@ class CacheManager(object):
         self.conn.commit()
 
     def save_file(self, filename, user, passwd):
-        dados_do_script = self.get_script(filename)
+        dados_do_script = self.get_script(self.file_path_to_vfs_path(filename))
         if dados_do_script is None:
             raise Exception("Arquivo não encontrado no cache do sublime!")
 
@@ -221,31 +323,27 @@ class CacheManager(object):
 
 class CacheLoader(threading.Thread):
     def __init__(self, window):
-        self.window = window
         threading.Thread.__init__(self)
+        self.window = window
 
     def run(self):
-        proj = self.window.project_data()
-        if proj is None:
-            raise Exception("Nenhum projeto aberto nessa janela!")
-        porta = proj['engine_port'] or None
-        if porta is None:
-            raise Exception("Configure a porta antes de prosseguir!")
-        pfn = self.window.project_file_name()
-        folder = os.path.dirname(pfn)
-        base = os.path.splitext(os.path.basename(pfn))[0]
-        root = os.path.join(folder,"Raiz")
-        if os.path.isdir(root):
-            shutil.rmtree(root)
-        os.mkdir(root)
-        proj["folders"] = [{"path": root}]
-        self.window.set_project_data(proj)
-        print("Iniciando carga do cache as %s" % strftime("%H:%M:%S"))
         cache = CacheManager(self.window)
         cache.initialize()
         cache.reset()
+
+        path = cache.get_project_path()
+        port = cache.get_engine_port()
+        base = cache.get_base_name()
+
+        root = os.path.join(path,"Raiz")
+        if os.path.isdir(root):
+            shutil.rmtree(root)
+        os.mkdir(root)
+        cache.add_project_data("folders", [{"path": root}])
+
+        print("Iniciando carga do cache as %s" % strftime("%H:%M:%S"))
         c = 0
-        for f in cache_reader(porta, base, root):
+        for f in cache_reader(port, base, root):
             try:
                 c = c + 1
                 cache.insert_item(f)
@@ -255,6 +353,7 @@ class CacheLoader(threading.Thread):
             except Exception as e:
                 print("Erro ao inserir script: %s; Erro: %s" % (f, e) )
         cache.conn.commit()
+        cache.register_cache_load()
         print("Carga do cache terminou as %s" % strftime("%H:%M:%S"))
 
 

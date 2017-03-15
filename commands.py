@@ -3,7 +3,7 @@ import os.path
 import textwrap
 import sublime
 import sublime_plugin
-from sbldyad.objects import CacheLoader, CacheManager
+import sbldyad.objects as dyad
 
 LICENCES = {
     1: "Dyad",
@@ -18,65 +18,47 @@ class ConfigPortCommand(sublime_plugin.WindowCommand):
         return self.window.project_data() is not None
 
     def run(self):
-        proj_data = self.window.project_data()
-        if proj_data is None:
-            sublime.error_message("Nenhum projeto aberto nessa janela!")
-            return
-        porta = self.get_project_setting('engine_port')
-        self.window.show_input_panel(
-            "Porta do engine", porta or "", self.handle_user_input, None, None)
-
-    def get_project_setting(self, key):
-        proj_data = self.window.project_data()
         try:
-            return proj_data[key]
-        except KeyError:
-            return None
+            self.cache = dyad.CacheManager(self.window)
+            porta = self.cache.get_engine_port(False)
+            self.window.show_input_panel(
+                "Porta do engine", porta or "", self.handle_user_input, None, None)
+        except Exception as e:
+           sublime.error_message("Erro: %s" % e)
 
     def handle_user_input(self, port):
         try:
-            proj_data = self.window.project_data()
-            proj_data['engine_port'] = port
-            self.window.set_project_data(proj_data)
+            self.cache.add_project_data('engine_port', port)
         except Exception as e:
-            sublime.error_message("Erro: %s" % e)
+            sublime.error_message("Erro:: %s" % e)
 
 class ConfigUserCommand(sublime_plugin.WindowCommand):
     def is_enabled(self):
         return self.window.project_data() is not None
 
     def run(self):
-        proj_data = self.window.project_data()
-        if proj_data is None:
-            sublime.error_message("Nenhum projeto aberto nessa janela!")
-            return
-        usuario = self.get_project_setting('engine_user')
-        self.window.show_input_panel(
-            "Usuário", usuario or "", self.handle_user_input, None, None)
-
-    def get_project_setting(self, key):
-        proj_data = self.window.project_data()
         try:
-            return proj_data[key]
-        except KeyError:
-            return None
+            self.cache = dyad.CacheManager(self.window)
+            usuario = self.cache.get_project_data('engine_user')
+            self.window.show_input_panel(
+                "Usuário", usuario or "", self.handle_user_input, None, None)
+        except Exception as e:
+            sublime.error_message("Erro: %s" % e)
 
     def handle_user_input(self, user):
         try:
-            proj_data = self.window.project_data()
-            proj_data['engine_user'] = user
-            self.window.set_project_data(proj_data)
+            self.cache.add_project_data('engine_user', user)
         except Exception as e:
             sublime.error_message("Erro: %s" % e)
 
 class LoadCacheCommand(sublime_plugin.WindowCommand):
     def is_enabled(self):
-        prj = self.window.project_data()
-        if prj is None:
+        try:
+            if self.window.project_data().get('engine_port') is not None:
+                return True
             return False
-        if prj.get('engine_port') is None:
+        except Exception as e:
             return False
-        return True
 
     def run(self):
         try:
@@ -86,7 +68,7 @@ class LoadCacheCommand(sublime_plugin.WindowCommand):
                 "Deseja mesmo continuar ?",
                 "Arrocha!", "Deixa quieto!") is not sublime.DIALOG_YES:
                 return
-            loader = CacheLoader(self.window)
+            loader = dyad.CacheLoader(self.window)
             loader.start()
             self.check_load_progress( loader )
         except Exception as e:
@@ -113,15 +95,15 @@ class LoadCacheCommand(sublime_plugin.WindowCommand):
             sublime.error_message("Erro: %s" % e)
 
 class CopyKeyToClipboardCommand(sublime_plugin.WindowCommand):
-    def is_visible(self, files):
-        if len(files) <= 0:
+    def is_visible(self, files=None):
+        try:
+            if files is None or len(files) <= 0:
+                return False
+            if self.window.project_data().get('engine_port') is not None:
+                return True
             return False
-        prj = self.window.project_data()
-        if prj is None:
+        except Exception as e:
             return False
-        if prj.get('engine_port') is None:
-            return False
-        return True
 
     def run(self, files):
         for f in files:
@@ -132,55 +114,90 @@ class CopyKeyToClipboardCommand(sublime_plugin.WindowCommand):
             self.copy_file_key(v,f)
 
     def copy_file_key(self, view, file):
-        cache = CacheManager(self.window)
+        cache = dyad.CacheManager(self.window)
+        file = cache.file_path_to_vfs_path(file)
+        print('copy_file_key:: File='+ file)
         dados_do_script = cache.get_script(file)
         if dados_do_script is None:
+            print("Nao encontrou")
             return
         sublime.set_clipboard(str(dados_do_script.get('chave')))
         sublime.status_message("Chave %d copiada" % dados_do_script.get('chave'))
 
-class ShowChangedFilesCommand(sublime_plugin.WindowCommand):
+class ShowLocalChangesCommand(sublime_plugin.WindowCommand):
     def is_visible(self):
-        prj = self.window.project_data()
-        if prj is None:
+        try:
+            if self.window.project_data().get('engine_port') is not None:
+                return True
             return False
-        if prj.get('engine_port') is None:
+        except Exception as e:
             return False
-        return True
 
     def run(self):
         v = self.window.new_file()
         v.set_name("Arquivos alterados apenas localmente")
         v.set_scratch(True)
-        cache = CacheManager(self.window)
+        cache = dyad.CacheManager(self.window)
         titulo = "\nArquivos alterados e ainda não enviados ao engine:\n"
         text = ""
-        for file in cache.get_changed_files():
+        for file in cache.get_local_changes():
             text = text + ("\t%d\t%s\n" % (file[1], file[5]))
         if text is "":
             text = "\tNenhum arquivo alterado apenas localmente"
         v.run_command('append', {'characters': (titulo + text)})
         v.set_read_only(True)
 
+class ShowRemoteChangesCommand(sublime_plugin.WindowCommand):
+    def is_visible(self):
+        try:
+            if self.window.project_data().get('engine_port') is not None:
+                return True
+            return False
+        except Exception as e:
+            return False
+
+    def run(self):
+        dados_do_projeto = self.window.project_data()
+        passwd = dados_do_projeto.get('engine_passwd', None)
+        if passwd is None:
+            self.window.show_input_panel(
+                "Senha do usuario", "", self.show_remote_changes, None, None)
+        else:
+            self.show_remote_changes(passwd)
+
+    def show_remote_changes(self, passwd):
+        cache = dyad.CacheManager(self.window)
+        text = ""
+        for line in cache.get_remote_changes(passwd):
+            print("Linha: %s" % line)
+            text += "Script: %s, Versão: %s, Tipo: %s, Tabela: %s" % (line[0], line[1], line[2], line[3])
+        titulo = "Arquivos alterados no engine"
+        v = self.window.new_file()
+        v.set_name(titulo)
+        v.set_scratch(True)
+        v.run_command('append', {'characters': (titulo +":\n\n"+ text)})
+        v.set_read_only(True)
+
 
 class ShowFileInfoCommand(sublime_plugin.TextCommand):
     def is_enabled(self):
-        w = self.view.window()
-        if w is None:
+        try:
+            if self.view.window().project_data().get('engine_port') is not None:
+                return True
             return False
-        prj = w.project_data()
-        if prj is None:
+        except Exception as e:
             return False
-        if prj.get('engine_port') is None:
-            return False
-        return True
+
     def run(self, edit):
         filename = self.view.file_name()
         if not filename:
             return
-        cache = CacheManager(self.view.window())
-        script = cache.get_script(filename)
-        if script is not None:
+        cache = dyad.CacheManager(self.view.window())
+        filename = cache.file_path_to_vfs_path(filename)
+        script   = cache.get_script(filename)
+        if script is None:
+            print("Script não encontrado no cache: %s" % filename)
+        else:
             self.view.set_status(
                 'a_chave', ("Chave:%d" % script.get('chave')))
             self.view.set_status(
@@ -195,15 +212,15 @@ class ShowFileInfoCommand(sublime_plugin.TextCommand):
 
 class OpenKeyCommand(sublime_plugin.TextCommand):
     def is_enabled(self):
-        prj = self.view.window().project_data()
-        if prj is None:
+        try:
+            if self.view.window().project_data().get('engine_port') is not None:
+                return True
             return False
-        if prj.get('engine_port') is None:
+        except Exception as e:
             return False
-        return True
 
     def run(self, edit):
-        proj_data = self.view.window().project_data()
+        # proj_data = self.view.window().project_data()
         self.view.run_command('expand_selection', {"to":"word"})
         sels = self.view.sel()
         if len(sels) == 0:
@@ -221,36 +238,47 @@ class OpenKeyCommand(sublime_plugin.TextCommand):
             pass
         searchkey = int(palavra)
         # print("Chave selecionada: %d" % searchkey)
-        cache = CacheManager(self.view.window())
+
+        cache = dyad.CacheManager(self.view.window())
         dados_do_script = cache.get_script_or_class(searchkey)
         if dados_do_script is None:
+            print("Nenhum script encontrado!")
             return
         if dados_do_script.get('erro') > 0:
             sublime.error_message("Aconteceu algum problema e não foi possível "
                 "exportar esse arquivo para o projeto do sublime!")
             return
-        pasta_raiz = proj_data.get('folders')[0].get('path')
-        caminho_script = os.path.join(pasta_raiz, dados_do_script.get('path'))
+
+        pasta_raiz = cache.get_root_path()
+        # print("Pasta raiz: %s" % pasta_raiz)
+
+        caminho_script = pasta_raiz + dados_do_script.get('path')
+
+        caminho_script = dyad.handle_filename(caminho_script)
         # print("Item para abrir: %s" % caminho_script)
-        caminho_script = caminho_script.replace('\\','/')
+
         if os.path.isfile(caminho_script):
             self.view.window().open_file(caminho_script)
+            return
+        else:
+            sublime.message_dialog("Essa parece ser uma chave de classe que não\
+            possui nenhum script. Então não há arquivo algum para abrir.")
 
 class RegisterFileChangeCommand(sublime_plugin.TextCommand):
     def is_enabled(self):
-        prj = self.view.window().project_data()
-        if prj is None:
+        try:
+            if self.view.window().project_data().get('engine_port') is not None:
+                return True
             return False
-        if prj.get('engine_port') is None:
+        except Exception as e:
             return False
-        return True
 
     def run(self, edit):
         filename = self.view.file_name()
         if not filename:
             return
-        cache = CacheManager(self.view.window())
-        dados_do_script = cache.get_script(filename)
+        cache = dyad.CacheManager(self.view.window())
+        # dados_do_script = cache.get_script(filename)
         # if dados_do_script is None:
         #     # Trata-se de um script novo
         #     cache.insert_script()
@@ -258,32 +286,35 @@ class RegisterFileChangeCommand(sublime_plugin.TextCommand):
 
 class SaveFileCommand(sublime_plugin.TextCommand):
     def is_enabled(self):
-        prj = self.view.window().project_data()
-        if prj is None:
+        try:
+            if self.view.window().project_data().get('engine_port') is not None:
+                return True
             return False
-        if prj.get('engine_port') is None:
+        except Exception as e:
             return False
-        return True
 
     def run(self, edit):
-        self.filename = self.view.file_name()
-        if self.filename is None:
-            return
-        dados_do_projeto = self.view.window().project_data()
-        self.user = dados_do_projeto.get('engine_user') or None
-        if self.user is None:
-            raise Exception("Configure a usuário antes de prosseguir!")
+        try:
+            self.filename = self.view.file_name()
+            if self.filename is None:
+                return
+            dados_do_projeto = self.view.window().project_data()
+            self.user = dados_do_projeto.get('engine_user', None)
+            if self.user is None:
+                raise Exception("Configure a usuário antes de prosseguir!")
 
-        passwd = dados_do_projeto.get('engine_passwd') or None
-        if passwd is None:
-            self.view.window().show_input_panel(
-                "Senha do usuario", "", self.save_file, None, None)
-        else:
-            self.save_file(passwd)
+            passwd = dados_do_projeto.get('engine_passwd', None)
+            if passwd is None:
+                self.view.window().show_input_panel(
+                    "Senha do usuario", "", self.save_file, None, None)
+            else:
+                self.save_file(passwd)
+        except Exception as e:
+           sublime.error_message("Erro: %s" % e)
 
     def save_file(self, passwd):
         try:
-            cache = CacheManager(self.view.window())
+            cache = dyad.CacheManager(self.view.window())
             cache.save_file(self.filename, self.user, passwd)
         except Exception as e:
             sublime.error_message("Erro: %s" % e)

@@ -1,4 +1,13 @@
 {
+	"show_encoding": true,
+	"font_size": 8,
+	"gutter": true,
+    "rulers": [ 80 ],
+	"tab_size": 4,
 	"show_full_path": false,
+	"use_tab_stops": true,
+	"translate_tabs_to_spaces": true,
+	"trim_trailing_white_space_on_save": true,
+    "ensure_newline_at_eof_on_save": false,
 	"fallback_encoding": "Western (ISO 8859-1)"
 }

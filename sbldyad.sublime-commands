@@ -17,8 +17,12 @@
 		"command": "copy_key_to_clipboard"
 	},
 	{
-		"caption": "Dyad: Mostrar arquivos alterados",
-		"command": "show_changed_files"
+		"caption": "Dyad: Mostrar arquivos alterados localmente",
+		"command": "show_local_changes"
+	},
+	{
+		"caption": "Dyad: Mostrar arquivos alterados no servidor",
+		"command": "show_remote_changes"
 	},
 	{
 		"caption": "Dyad: Mostrar informações do arquivo na barra de status",
