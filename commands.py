@@ -147,7 +147,7 @@ class ShowLocalChangesCommand(sublime_plugin.WindowCommand):
         v.run_command('append', {'characters': (titulo + text)})
         v.set_read_only(True)
 
-class ShowRemoteChangesCommand(sublime_plugin.WindowCommand):
+class GetRemoteChangesCommand(sublime_plugin.WindowCommand):
     def is_visible(self):
         try:
             if self.window.project_data().get('engine_port') is not None:
@@ -161,17 +161,16 @@ class ShowRemoteChangesCommand(sublime_plugin.WindowCommand):
         passwd = dados_do_projeto.get('engine_passwd', None)
         if passwd is None:
             self.window.show_input_panel(
-                "Senha do usuario", "", self.show_remote_changes, None, None)
+                "Senha do usuario", "", self.get_remote_changes, None, None)
         else:
-            self.show_remote_changes(passwd)
+            self.get_remote_changes(passwd)
 
-    def show_remote_changes(self, passwd):
+    def get_remote_changes(self, passwd):
         cache = dyad.CacheManager(self.window)
-        text = ""
-        for line in cache.get_remote_changes(passwd):
-            print("Linha: %s" % line)
-            text += "Script: %s, Versão: %s, Tipo: %s, Tabela: %s" % (line[0], line[1], line[2], line[3])
-        titulo = "Arquivos alterados no engine"
+        titulo = ("Baixando atualizações na IVFS ocorridas desde %s %s" % cache.get_most_recent_cache_update())
+        text = cache.update_local_repository(passwd)
+        cache.register_cache_load()
+
         v = self.window.new_file()
         v.set_name(titulo)
         v.set_scratch(True)

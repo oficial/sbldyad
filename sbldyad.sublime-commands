@@ -21,8 +21,8 @@
 		"command": "show_local_changes"
 	},
 	{
-		"caption": "Dyad: Mostrar arquivos alterados no servidor",
-		"command": "show_remote_changes"
+		"caption": "Dyad: Baixar arquivos alterados no servidor",
+		"command": "get_remote_changes"
 	},
 	{
 		"caption": "Dyad: Mostrar informações do arquivo na barra de status",

@@ -26,7 +26,7 @@ def send_request(port, script, data):
 
 def handle_filename(filename):
     if sublime.platform() == 'linux':
-        return filename.replace('Z:','').replace('H:', os.environ.get('HOME')).replace('\\','/')
+        return filename.replace('Z:','').replace('H:', os.environ.get('HOME')).replace('\\','/').replace('\r\n','')
     return filename
 
 def cache_reader(porta, base, path):
@@ -203,12 +203,7 @@ class CacheManager(object):
         cur.execute("select * from VFS where alterado > 0")
         return cur.fetchall()
 
-    def get_remote_changes(self, passwd):
-        base = self.get_base_name()
-        porta = self.get_engine_port()
-        pasta = self.get_project_path()
-        user = self.get_engine_user()
-
+    def get_most_recent_cache_update(self):
         atualizacoes = self.get_cache_history()
         if len(atualizacoes) is 0:
             raise Exception("Impossível determinar a data da última atualização!")
@@ -216,6 +211,16 @@ class CacheManager(object):
         ultima_atualizacao = atualizacoes[0]
         data = ultima_atualizacao[1]
         hora = ultima_atualizacao[2]
+        return (data, hora)
+
+    def update_local_repository(self, passwd):
+        base = self.get_base_name()
+        porta = self.get_engine_port()
+        pasta = self.get_project_path()
+        user = self.get_engine_user()
+
+        data, hora = self.get_most_recent_cache_update()
+
         print("Ultima atualização foi em: %s %s" % (data, hora))
 
         response = send_request(porta, IVFS_SCRIPT, {
@@ -227,13 +232,30 @@ class CacheManager(object):
             'user': user,
             'passwd': passwd
         })
-        # resp = resp.readall().decode('iso-8859-1')
-        # print("Resposta: %s" % resp)
-        # return resp
+        text = "Script;Classe;Versão;Tipo;Path"
         for line in response:
             line = line.decode('iso-8859-1')
             field_list = line.split(';')
-            yield field_list
+            tipo = field_list[3]
+            if tipo == 'UPDATE':
+                self.update_script({
+                    'chave':    field_list[0],
+                    'mae':      field_list[1],
+                    'versao':   field_list[2],
+                    'path':     handle_filename(field_list[4])
+                })
+            elif tipo == 'INSERT':
+                # TODO
+                continue
+            elif tipo == 'DELETE':
+                # TODO
+                continue
+            else:
+                continue
+            text += "\n%s;%s;%s;%s;%s" % (
+                field_list[0], field_list[1], field_list[2], field_list[3], handle_filename(field_list[4])
+            )
+        return text
 
     def set_file_changed(self, filename):
         filename = self.file_path_to_vfs_path(filename)
@@ -247,7 +269,10 @@ class CacheManager(object):
         cur = self.conn.cursor()
         cur.execute("""
             update vfs
-            set alterado=0, versao=:versao
+            set alterado=0,
+                mae=:mae,
+                versao=:versao,
+                path=:path
             where chave=:chave
         """, file_details)
         self.conn.commit()
@@ -287,13 +312,19 @@ class CacheManager(object):
             if not sublime.ok_cancel_dialog(
                 "Conflito de versão!\nVersão local:%d\nVersão no banco:%d\nFazer o merge?"%(dados_do_script['versao'], result.get('iversion'))):
                 return
+
             mergeFile = handle_filename(result.get('mergeFile'))
-            print("Invocando o merge entre os arquivos\n%s\n%s" % (dados_do_script['path'], mergeFile))
-            ret_code = subprocess.call(["/usr/bin/meld", dados_do_script['path'], mergeFile])
+
+            # Retira a barra do comeco da IURL, pois ela faz o join retornar somente o segundo parametro
+            localFile = os.path.join(self.get_root_path(), dados_do_script['path'][1:])
+
+            print("Invocando o merge entre os arquivos\n%s\n%s" % (localFile, mergeFile))
+
+            ret_code = subprocess.call(["/usr/bin/meld", localFile, mergeFile])
             if ret_code != 0: # 0 = OK!
                 print('O merge terminou de forma inesperada! Código de retorno:%d'%(ret_code))
                 return
-            shutil.copyfile(mergeFile, dados_do_script['path'])
+            shutil.copyfile(mergeFile, localFile)
             dados_do_script['versao'] = result.get('iversion')
             self.update_script(dados_do_script)
             sublime.message_dialog("Merge local realizado com sucesso. Agora tente salvar o script novamente no engine.")
