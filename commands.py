@@ -124,6 +124,36 @@ class CopyKeyToClipboardCommand(sublime_plugin.WindowCommand):
         sublime.set_clipboard(str(dados_do_script.get('chave')))
         sublime.status_message("Chave %d copiada" % dados_do_script.get('chave'))
 
+class CopyClassKeyToClipboardCommand(sublime_plugin.WindowCommand):
+    def is_visible(self, files=None):
+        try:
+            if files is None or len(files) <= 0:
+                return False
+            if self.window.project_data().get('engine_port') is not None:
+                return True
+            return False
+        except Exception as e:
+            return False
+
+    def run(self, files):
+        for f in files:
+            v = self.window.find_open_file(f)
+            if v is None:
+                return
+
+            self.copy_class_key(v,f)
+
+    def copy_class_key(self, view, file):
+        cache = dyad.CacheManager(self.window)
+        file = cache.file_path_to_vfs_path(file)
+        print('copy_class_key:: File='+ file)
+        dados_do_script = cache.get_script(file)
+        if dados_do_script is None:
+            print("Nao encontrou")
+            return
+        sublime.set_clipboard(str(dados_do_script.get('mae')))
+        sublime.status_message("Chave %d copiada" % dados_do_script.get('mae'))
+
 class ShowLocalChangesCommand(sublime_plugin.WindowCommand):
     def is_visible(self):
         try:
@@ -167,7 +197,7 @@ class GetRemoteChangesCommand(sublime_plugin.WindowCommand):
 
     def get_remote_changes(self, passwd):
         cache = dyad.CacheManager(self.window)
-        titulo = ("Baixando atualizações na IVFS ocorridas desde %s %s" % cache.get_most_recent_cache_update())
+        titulo = ("Atualizações na IVFS desde %s %s" % cache.get_most_recent_cache_update())
         text = cache.update_local_repository(passwd)
         cache.register_cache_load()
 

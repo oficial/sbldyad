@@ -9,7 +9,8 @@
                     { "command":"config_port",          "caption": "Configurar porta"},
                     { "command":"config_user",          "caption": "Configurar usuário"},
                     { "command":"load_cache",           "caption": "Carregar cache"},
-                    { "command":"show_local_changes",   "caption": "Mostrar arquivos alterados"}
+                    { "command":"show_local_changes",   "caption": "Mostrar arquivos alterados"},
+                    { "command":"get_remote_changes",   "caption": "Baixar arquivos alterados no servidor"}
                 ]
             }
 		]

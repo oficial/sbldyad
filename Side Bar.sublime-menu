@@ -3,5 +3,10 @@
         "caption": "Copiar chave do script",
         "command": "copy_key_to_clipboard",
         "args": {"files": []}
+    },
+    {
+        "caption": "Copiar chave da classe",
+        "command": "copy_class_key_to_clipboard",
+        "args": {"files": []}
     }
 ]

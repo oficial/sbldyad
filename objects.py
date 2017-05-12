@@ -232,29 +232,31 @@ class CacheManager(object):
             'user': user,
             'passwd': passwd
         })
-        text = "Script;Classe;Versão;Tipo;Path"
+        text = "Tipo;Script;Versão;Path"
         for line in response:
             line = line.decode('iso-8859-1')
-            field_list = line.split(';')
-            tipo = field_list[3]
-            if tipo == 'UPDATE':
-                self.update_script({
-                    'chave':    field_list[0],
-                    'mae':      field_list[1],
-                    'versao':   field_list[2],
-                    'path':     handle_filename(field_list[4])
-                })
-            elif tipo == 'INSERT':
-                # TODO
-                continue
-            elif tipo == 'DELETE':
-                # TODO
-                continue
+            if line.startswith("NENHUM"):
+                return "Nenhuma alteração"
+            fields = line.split(';')
+            file_data = self.get_script_by_key(fields[1])
+            if file_data is None:
+                print("Inserindo: %s" % line)
+                self.insert_item(fields)
+                text += "\nINSERT;%s;%s;%s" % (
+                    fields[1], fields[3], handle_filename(fields[5])
+                )
             else:
-                continue
-            text += "\n%s;%s;%s;%s;%s" % (
-                field_list[0], field_list[1], field_list[2], field_list[3], handle_filename(field_list[4])
-            )
+                self.update_script({
+                    'chave':    fields[1],
+                    'mae':      fields[2],
+                    'versao':   fields[3],
+                    'nome':     fields[4],
+                    'path':     handle_filename(fields[5])
+                })
+                text += "\nUPDATE;%s;%s;%s" % (
+                    fields[1], fields[3], handle_filename(fields[5])
+                )
+        self.conn.commit()
         return text
 
     def set_file_changed(self, filename):
@@ -266,11 +268,13 @@ class CacheManager(object):
         self.conn.commit()
 
     def update_script(self, file_details):
+        file_details['path'] = self.file_path_to_vfs_path(file_details.get('path'))
         cur = self.conn.cursor()
         cur.execute("""
             update vfs
             set alterado=0,
                 mae=:mae,
+                nome=:nome,
                 versao=:versao,
                 path=:path
             where chave=:chave
