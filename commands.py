@@ -359,28 +359,30 @@ class ShowEngineHelp(sublime_plugin.WindowCommand):
             Esse plugin tem por objetivo possibilitar o uso do Sublime Text como uma IDE
             básica para o desenvolvimento no iEngine.
 
-            Para isso, o plugin se comunica via HTTP com um script, que deve existir na base,
-            enviando comandos para o engine e processando a resposta.
+            Para isso, o sublime se comunica via HTTP com um engine LOCAL, acessando um script
+            (que deve existir na base), e enviando comandos para o script e processando a resposta.
+
+            Dessa forma, não é possível utilizar esse plugin para se comunicar com engines remotos.
 
             Exemplo de fluxo de trabalho:
 
-            1. Criação do projeto
+            1. Criação inicial do projeto no sublime
 
-                1.1. A partir de uma janela existente, selecione a opção "File/New Window";
+                1.1. A partir de uma janela existente, selecione a opção "File/New Window".
 
-                1.2. Na nova janela, selecione "Project/Save project As";
+                1.2. Na nova janela, selecione "Project/Save project As".
 
                 1.3. Crie uma pasta para o projeto, informe o nome da base como nome do arquivo
-                    do projeto e salve;
+                    do projeto e salve.
 
                 1.4. Depois do projeto criado, use os comandos abaixo para configurar os dados
-                    do projeto: "Project/Engine IDE/Configurar Porta" e "Configurar Usuário"
+                    do projeto: "Project/Engine IDE/Configurar Porta" e "Configurar Usuário".
 
                 1.5. Selecione a opção "Project/Engine IDE/Carregar Cache". Se essa opção já
                     tiver sido executada alguma vez, o cache anterior será completamente deletado
                     e uma nova cópia será criada em disco. Durante o carregamento a barra de
                     status apresentará uma mensagem característica. O tempo de carga pode
-                    variar entre 20 e 30 minutos, dependendo do tamanho do cache.
+                    variar, dependendo do tamanho do cache.
 
                     OBS 1: Apenas arquivos texto serão exportados. Arquivos como imagens,
                     JARs, ZIPs, EXEs e demais arquivos binários não serão exportados.
@@ -436,6 +438,14 @@ class ShowEngineHelp(sublime_plugin.WindowCommand):
                 2.5. Se no momento da gravação houver conflito de versão, será possível optar
                     por fazer o merge das alterações. Depois do merge feito, tente gravar
                     novamente com CTRL+SHIFT+S e a gravação deve ser feita com sucesso.
+
+                2.6. Para abrir rapidamente um arquivo, digite CTRL+P e comece a digitar o nome,
+                    ou parte do nome do arquivo, que o Sublime fará uma busca e mostrará os
+                    possíveis arquivos, semelhante a uma busca por x-find em campos lookup.
+
+                2.7. Para realizar busca por uma string em toda a IVFS, use o comando CTRL+SHIFT+F
+                    do Sublime. Essa busca normalmente é mais rápida do que rodar um select na IVFS,
+                    e permite ainda buscar usando expressões regulares.
 
             Nessa versão ainda não estão implementadas algumas funções como: criar, excluir,
             renomear ou mover scripts, apenas alteração. Também ainda não temos um IDBC
