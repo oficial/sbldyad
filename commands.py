@@ -10,6 +10,7 @@ LICENCES = {
     2: "Bematech"
 }
 
+
 def reformat(template):
     return textwrap.dedent(template).lstrip()
 

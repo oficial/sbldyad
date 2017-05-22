@@ -310,6 +310,26 @@ class CacheManager(object):
         resposta_json = json.loads(resposta)
         self.handle_save_result(dados_do_script, resposta_json)
 
+    def get_merge_tool(self):
+        project_defined_tool = self.get_project_data("mergetool")
+        if project_defined_tool is not None:
+            return project_defined_tool
+        platform = sublime.platform()
+
+        if platform == "windows":
+            # TODO - Testar
+            if sublime.arch() == "x32":
+                return "C:/Program Files/WinMerge/WinMergeU.exe"
+            else:
+                return "C:/Program Files (x86)/WinMerge/WinMergeU.exe"
+
+        elif platform == "osx":
+            # TODO - Testar
+            return "/usr/bin/meld"
+
+        else:
+            return "/usr/bin/meld"
+
     def handle_save_result(self, dados_do_script, result):
         cod = result.get('cod')
         if cod == 'CONFLITO_DE_VERSAO':
