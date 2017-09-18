@@ -291,8 +291,8 @@ class OpenKeyCommand(sublime_plugin.TextCommand):
             self.view.window().open_file(caminho_script)
             return
         else:
-            sublime.message_dialog("Essa parece ser uma chave de classe que não\
-            possui nenhum script. Então não há arquivo algum para abrir.")
+            sublime.message_dialog("Não foi possível encontrar o arquivo!\n"
+                "Path: "+ caminho_script)
 
 class RegisterFileChangeCommand(sublime_plugin.TextCommand):
     def is_enabled(self):

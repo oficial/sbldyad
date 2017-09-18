@@ -157,7 +157,7 @@ class CacheManager(object):
 
     def file_path_to_vfs_path(self, filename):
         path_raiz = self.get_root_path()
-        return filename.replace(path_raiz, '')
+        return filename.replace(handle_filename(path_raiz), '')
 
     def file_details(self, file_data):
         if file_data is None:
@@ -201,6 +201,11 @@ class CacheManager(object):
     def get_local_changes(self):
         cur = self.conn.cursor()
         cur.execute("select * from VFS where alterado > 0")
+        return cur.fetchall()
+
+    def query(self, sql):
+        cur = self.conn.cursor()
+        cur.execute(sql)
         return cur.fetchall()
 
     def get_most_recent_cache_update(self):
